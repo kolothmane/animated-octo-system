@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Instagram Session Connector",
+  "version": "1.0.0",
+  "description": "Récupère votre session Instagram active et la transmet à l'application locale.",
+  "permissions": [
+    "cookies",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "https://*.instagram.com/*",
+    "http://localhost/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Connecter Instagram"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

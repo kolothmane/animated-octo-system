@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Instagram Session Connector</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 300px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #fff;
+      padding: 20px;
+    }
+
+    .logo {
+      text-align: center;
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 12px;
+      color: #8e8e8e;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+
+    #connect-btn {
+      display: block;
+      width: 100%;
+      padding: 12px 0;
+      background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+
+    #connect-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    #status {
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      text-align: center;
+      display: none;
+      line-height: 1.5;
+    }
+
+    #status.success {
+      display: block;
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    #status.error {
+      display: block;
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    #status.info {
+      display: block;
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+
+    .note {
+      margin-top: 14px;
+      font-size: 11px;
+      color: #8e8e8e;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .server-url {
+      margin-top: 14px;
+    }
+
+    .server-url label {
+      display: block;
+      font-size: 12px;
+      color: #262626;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .server-url input {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 12px;
+      border-radius: 6px;
+      border: 1px solid #dbdbdb;
+      background: #fafafa;
+      color: #262626;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">Instagram</div>
+  <p class="subtitle">Connectez votre session Instagram active à l'application.</p>
+
+  <div class="server-url">
+    <label for="api-url">URL de l'application</label>
+    <input type="text" id="api-url" value="http://localhost:3000" placeholder="http://localhost:3000" />
+  </div>
+
+  <button id="connect-btn" style="margin-top: 14px;">
+    Connecter mon compte Instagram
+  </button>
+
+  <div id="status"></div>
+
+  <p class="note">
+    Assurez-vous d'être connecté à Instagram dans cet navigateur avant de cliquer.
+  </p>
+
+  <script src="popup.js"></script>
+</body>
+</html>
