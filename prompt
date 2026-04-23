@@ -1,0 +1,59 @@
+Prompt de Génération : Insta-Private-Monitor
+Objet : Création d'une application Next.js (Vercel) pour monitorer un compte Instagram privé auquel j'ai accès.
+
+Stack Technique :
+
+Framework : Next.js (App Router).
+
+Base de données : Upstash Redis (pour stocker le sessionid et les listes de followers).
+
+Bibliothèque Instagram : instagram-private-api (Node.js).
+
+Notifications : API Telegram Bot.
+
+Automatisation : Vercel Cron Jobs.
+
+Instructions de logique backend :
+
+Gestion de Session :
+
+L'application doit utiliser mon sessionid Instagram (récupéré manuellement et stocké dans les variables d'environnement ou Redis).
+
+Utiliser un "User-Agent" correspondant à un iPhone récent pour simuler une connexion mobile légitime.
+
+Route API de Monitoring (/api/check) :
+
+Se connecter à Instagram via la session stockée.
+
+Récupérer la liste complète des followers du compte cible (152 personnes).
+
+Comparaison Redis : Utiliser les commandes SDIFF d'Upstash Redis pour comparer la liste récupérée avec la liste followers:target:previous stockée en base.
+
+Mettre à jour la base de données après la comparaison.
+
+Système d'Alertes :
+
+Si SDIFF retourne des nouveaux utilisateurs ou des comptes disparus, envoyer immédiatement une notification via le Bot Telegram.
+
+Message type :
+⚠️ Changement détecté sur [Cible]
+✅ Nouveau(x) : [noms]
+❌ Départ(s) : [noms]
+
+Sécurité & Discrétion (Critique) :
+
+Ajouter un délai aléatoire (sleep) entre les appels pour éviter d'être détecté comme un robot.
+
+Prévoir une gestion d'erreur : si la session expire (401), m'envoyer une notification Telegram pour que je mette à jour le sessionid.
+
+Variables d'environnement nécessaires :
+
+IG_SESSION_ID
+
+TARGET_USERNAME
+
+UPSTASH_REDIS_REST_URL / TOKEN
+
+TELEGRAM_BOT_TOKEN
+
+TELEGRAM_CHAT_ID
