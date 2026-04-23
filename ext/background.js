@@ -15,17 +15,19 @@ function normalizeCookie(cookie) {
 }
 
 async function collectInstagramCookies() {
-  const cookies = await chrome.cookies.getAll({ url: INSTAGRAM_URL });
-  const normalized = cookies
-    .filter((cookie) => /instagram\.com$/i.test(cookie.domain ?? ''))
-    .map(normalizeCookie);
+  const allCookies = await chrome.cookies.getAll({ url: INSTAGRAM_URL });
+  const sessionCookie = allCookies.find(c => c.name === 'sessionid');
+  const userCookie = allCookies.find(c => c.name === 'ds_user_id');
 
-  const sessionCookie = normalized.find((cookie) => cookie.name === 'sessionid');
   if (!sessionCookie) {
     throw new Error('Cookie sessionid introuvable. Connecte-toi d’abord à Instagram dans Chrome.');
   }
 
-  return normalized;
+  if (!userCookie) {
+    throw new Error('Cookie ds_user_id introuvable. La session est peut-être incomplète. Reconnecte-toi à Instagram.');
+  }
+
+  return [sessionCookie, userCookie].map(normalizeCookie);
 }
 
 async function sendCookiesToBackend(cookies) {
