@@ -3,18 +3,116 @@ import redis from './redis';
 
 const SESSION_KEY = 'ig:session_manual';
 const LOGGED_USER_KEY = 'ig:logged_username';
+const DEVICE_SEED = 'chrome-extension-session';
 
-async function buildClientFromSession(): Promise<IgApiClient> {
-  const client = new IgApiClient();
+type BrowserCookie = {
+  name: string;
+  value: string;
+  domain?: string;
+  path?: string;
+  secure?: boolean;
+  httpOnly?: boolean;
+  expirationDate?: number;
+  sameSite?: string;
+};
 
+type SerializedCookie = {
+  key: string;
+  value: string;
+  domain: string;
+  path: string;
+  secure: boolean;
+  httpOnly: boolean;
+  hostOnly: boolean;
+  creation: string;
+  lastAccessed: string;
+  sameSite?: string;
+  expires?: string;
+};
+
+type SerializedCookieJar = {
+  version: string;
+  storeType: string;
+  rejectPublicSuffixes: boolean;
+  enableLooseMode: boolean;
+  cookies: SerializedCookie[];
+};
+
+function normalizeDomain(domain: string | undefined): { domain: string; hostOnly: boolean } {
+  const normalized = domain?.trim() || '.instagram.com';
+  return {
+    domain: normalized,
+    hostOnly: !normalized.startsWith('.'),
+  };
+}
+
+function toSerializedCookieJar(cookies: BrowserCookie[]): SerializedCookieJar {
+  const now = new Date().toISOString();
+
+  return {
+    version: 'tough-cookie@4',
+    storeType: 'MemoryCookieStore',
+    rejectPublicSuffixes: true,
+    enableLooseMode: true,
+    cookies: cookies
+      .filter((cookie) => cookie.name && cookie.value !== undefined)
+      .map((cookie) => {
+        const { domain, hostOnly } = normalizeDomain(cookie.domain);
+        return {
+          key: cookie.name,
+          value: String(cookie.value),
+          domain,
+          path: cookie.path?.trim() || '/',
+          secure: !!cookie.secure,
+          httpOnly: !!cookie.httpOnly,
+          hostOnly,
+          creation: now,
+          lastAccessed: now,
+          sameSite: cookie.sameSite,
+          expires:
+            typeof cookie.expirationDate === 'number'
+              ? new Date(cookie.expirationDate).toISOString()
+              : undefined,
+        };
+      }),
+  };
+}
+
+async function createClientFromStoredSession(): Promise<IgApiClient> {
   const saved = await redis.get<string>(SESSION_KEY);
   if (!saved) {
     throw new Error('No Instagram session configured');
   }
 
-  const raw = typeof saved === 'string' ? saved : JSON.stringify(saved);
-  await client.state.deserialize(raw);
+  const client = new IgApiClient();
+  client.state.generateDevice(DEVICE_SEED);
+  await client.state.deserialize(saved);
+  await client.qe.syncLoginExperiments();
   return client;
+}
+
+async function persistClientSession(client: IgApiClient, username: string): Promise<void> {
+  const serialized = (await client.state.serialize()) as Record<string, unknown>;
+  delete serialized.constants;
+  await redis.set(SESSION_KEY, JSON.stringify(serialized));
+  await redis.set(LOGGED_USER_KEY, username);
+}
+
+export async function saveSessionFromBrowserCookies(cookies: BrowserCookie[]): Promise<string> {
+  const sessionCookies = cookies.filter((cookie) => /instagram\.com$/i.test(cookie.domain ?? '.instagram.com'));
+
+  if (sessionCookies.length === 0) {
+    throw new Error('Aucun cookie Instagram valide reçu');
+  }
+
+  const client = new IgApiClient();
+  client.state.generateDevice(DEVICE_SEED);
+  await client.state.deserialize({ cookies: toSerializedCookieJar(sessionCookies) });
+  await client.qe.syncLoginExperiments();
+
+  const currentUser = await client.account.currentUser();
+  await persistClientSession(client, currentUser.username);
+  return currentUser.username;
 }
 
 export async function loginAndSaveSession(username: string, password: string): Promise<string> {
@@ -22,10 +120,7 @@ export async function loginAndSaveSession(username: string, password: string): P
   client.state.generateDevice(username);
 
   await client.account.login(username, password);
-
-  const serialized = await client.state.serialize();
-  await redis.set(SESSION_KEY, JSON.stringify(serialized));
-  await redis.set(LOGGED_USER_KEY, username);
+  await persistClientSession(client, username);
 
   return username;
 }
@@ -40,7 +135,7 @@ export async function logoutAndClearSession(): Promise<void> {
 }
 
 export async function getOwnConnections(): Promise<{ followers: string[]; following: string[] }> {
-  const client = await buildClientFromSession();
+  const client = await createClientFromStoredSession();
 
   const me = await client.account.currentUser();
   const pk = me.pk;
@@ -53,19 +148,19 @@ export async function getOwnConnections(): Promise<{ followers: string[]; follow
 
   do {
     const page = await followersFeed.items();
-    page.forEach((u) => followers.push(u.username));
+    page.forEach((user) => followers.push(user.username));
   } while (followersFeed.isMoreAvailable());
 
   do {
-    const followingPage = await followingFeed.items();
-    followingPage.forEach((u) => following.push(u.username));
+    const page = await followingFeed.items();
+    page.forEach((user) => following.push(user.username));
   } while (followingFeed.isMoreAvailable());
 
   return { followers, following };
 }
 
 export async function getFollowers(targetUsername: string): Promise<string[]> {
-  const client = await buildClientFromSession();
+  const client = await createClientFromStoredSession();
 
   const targetUser = await client.user.searchExact(targetUsername);
   const followersFeed = client.feed.accountFollowers(targetUser.pk);
@@ -74,7 +169,7 @@ export async function getFollowers(targetUsername: string): Promise<string[]> {
 
   do {
     const page = await followersFeed.items();
-    page.forEach((u) => usernames.push(u.username));
+    page.forEach((user) => usernames.push(user.username));
   } while (followersFeed.isMoreAvailable());
 
   return usernames;

@@ -1,73 +1,117 @@
 import { NextResponse } from 'next/server';
-import redis from '@/lib/redis';
+import { getLoggedUsername, saveSessionFromBrowserCookies } from '@/lib/instagram';
 
-const KEY = 'ig:session_manual';
+type IncomingCookie = {
+  name?: string;
+  value?: string;
+  domain?: string;
+  path?: string;
+  secure?: boolean;
+  httpOnly?: boolean;
+  expirationDate?: number;
+  sameSite?: string;
+};
 
-function normalizeValue(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return '';
+function parseCookieString(cookieString: string): IncomingCookie[] {
+  return cookieString
+    .split(/;\s*/)
+    .map((segment) => {
+      const separatorIndex = segment.indexOf('=');
+      if (separatorIndex <= 0) {
+        return null;
+      }
 
-  try {
-    return decodeURIComponent(trimmed);
-  } catch {
-    return trimmed;
-  }
+      const name = segment.slice(0, separatorIndex).trim();
+      const value = segment.slice(separatorIndex + 1).trim();
+      if (!name || !value) {
+        return null;
+      }
+
+      return {
+        name,
+        value,
+        domain: '.instagram.com',
+        path: '/',
+        secure: true,
+        httpOnly: false,
+      } satisfies IncomingCookie;
+    })
+    .filter((cookie): cookie is IncomingCookie => cookie !== null);
 }
 
-function extractSessionId(input: string): string {
-  const normalized = normalizeValue(input);
-
-  // Case 1: full cookie string
-  if (normalized.includes('sessionid=')) {
-    const match = normalized.match(/sessionid=([^;\s]+)/i);
-    if (match && match[1]) {
-      return match[1].trim();
-    }
+function normalizeIncomingCookies(body: unknown): IncomingCookie[] {
+  if (!body || typeof body !== 'object') {
+    return [];
   }
 
-  // Case 2: raw value only
-  return normalized;
+  const payload = body as {
+    cookies?: IncomingCookie[];
+    cookieString?: string;
+    sessionId?: string;
+  };
+
+  if (Array.isArray(payload.cookies) && payload.cookies.length > 0) {
+    return payload.cookies
+      .map((cookie) => ({
+        name: String(cookie.name ?? '').trim(),
+        value: String(cookie.value ?? '').trim(),
+        domain: cookie.domain,
+        path: cookie.path,
+        secure: cookie.secure,
+        httpOnly: cookie.httpOnly,
+        expirationDate: cookie.expirationDate,
+        sameSite: cookie.sameSite,
+      }))
+      .filter((cookie) => cookie.name && cookie.value);
+  }
+
+  if (typeof payload.cookieString === 'string' && payload.cookieString.trim()) {
+    return parseCookieString(payload.cookieString);
+  }
+
+  if (typeof payload.sessionId === 'string' && payload.sessionId.trim()) {
+    return [
+      {
+        name: 'sessionid',
+        value: payload.sessionId.trim(),
+        domain: '.instagram.com',
+        path: '/',
+        secure: true,
+        httpOnly: true,
+      },
+    ];
+  }
+
+  return [];
 }
 
 export async function GET() {
-  const session = await redis.get(KEY);
-  return NextResponse.json({ configured: !!session, defaultUsername: process.env.INSTAGRAM_TARGET_USERNAME ?? '' });
+  const username = await getLoggedUsername();
+  return NextResponse.json({
+    configured: !!username,
+    username,
+    defaultUsername: process.env.INSTAGRAM_TARGET_USERNAME ?? '',
+  });
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const rawInput = String(body?.sessionId ?? '');
-    const sessionId = extractSessionId(rawInput);
+    const cookies = normalizeIncomingCookies(body);
 
-    if (!sessionId || sessionId.length < 10) {
+    if (cookies.length === 0) {
       return NextResponse.json(
         {
-          error:
-            'Sessionid invalide. Colle soit la valeur du cookie sessionid, soit un header Cookie contenant sessionid=...'
+          error: 'Aucun cookie Instagram valide reçu. L’extension doit envoyer le cookie complet.',
         },
         { status: 400 }
       );
     }
 
-    await redis.set(
-      KEY,
-      JSON.stringify({
-        cookies: [
-          {
-            key: 'sessionid',
-            value: sessionId,
-            domain: '.instagram.com',
-            path: '/',
-            secure: true,
-            httpOnly: true
-          }
-        ]
-      })
-    );
-
-    return NextResponse.json({ message: 'Session Instagram enregistrée avec succès' });
-  } catch {
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    const username = await saveSessionFromBrowserCookies(cookies);
+    return NextResponse.json({ message: 'Session Instagram enregistrée avec succès', username });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Erreur serveur';
+    return NextResponse.json({ error: message }, { status: 400 });
   }
 }

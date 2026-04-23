@@ -31,17 +31,18 @@ Ce guide explique étape par étape comment rendre l'application pleinement fonc
 
 ---
 
-## 2. Récupérer le Session ID Instagram
+## 2. Connecter la session Instagram via l'extension Chrome
 
-Le `IG_SESSION_ID` est le cookie `sessionid` de votre session Instagram. Voici comment l'obtenir :
+Nous n'utilisons plus de formulaire utilisateur/mot de passe. L'extension Chrome lit la session active de l'utilisateur dans `instagram.com` et la transmet au backend local.
 
-1. Ouvrez **Chrome** ou **Firefox** et connectez-vous à [instagram.com](https://www.instagram.com).
-2. Ouvrez les **DevTools** (`F12`) → onglet **Application** (Chrome) ou **Stockage** (Firefox).
-3. Dans le panneau gauche : **Cookies** → `https://www.instagram.com`.
-4. Cherchez le cookie nommé `sessionid` et copiez sa valeur (une longue chaîne alphanumérique).
+1. Ouvrez le dossier `chrome-extension/` dans Chrome via `chrome://extensions`.
+2. Activez le **Mode développeur**.
+3. Cliquez sur **Charger l’extension non empaquetée** et sélectionnez le dossier `chrome-extension/`.
+4. Ouvrez [instagram.com](https://www.instagram.com) dans Chrome et connectez-vous normalement si nécessaire.
+5. Cliquez sur **Connecter mon compte Instagram** dans le popup de l’extension.
+6. La page Next.js détecte ensuite automatiquement la session sur `http://localhost:3000`.
 
-> ⚠️ **Ce cookie est sensible** : ne le partagez jamais et ne le commitez pas dans le dépôt.
-> Il expire généralement après quelques semaines d'inactivité ou si vous vous déconnectez.
+> ⚠️ Le cookie de session reste sensible. L’extension l’envoie uniquement à votre backend local et ne le stocke pas dans le frontend.
 
 ---
 
@@ -147,43 +148,38 @@ Le fichier `vercel.json` configure un cron job Vercel qui appelle `/api/check` t
    cp .env.example .env.local
    ```
 
-2. Installez les dépendances :
-   ```bash
-   npm install
-   ```
+2. Installez les dépendances puis lancez le serveur Next.js.
 
-3. Lancez le serveur de développement :
-   ```bash
-   npm run dev
-   ```
+3. Chargez `chrome-extension/` dans Chrome en mode développeur.
 
-4. Appelez la route de vérification :
+4. Ouvrez `http://localhost:3000` et laissez la page attendre la session.
+
+5. Ouvrez Instagram dans Chrome puis cliquez sur **Connecter mon compte Instagram** dans l’extension.
+
+6. Quand la session est reçue, la page passe automatiquement en mode connecté et charge les listes.
+
+7. Vous pouvez ensuite vérifier la route de contrôle :
    ```bash
    curl http://localhost:3000/api/check
    ```
 
-5. Réponse attendue (premier appel) :
+8. Réponse attendue une fois connecté :
    ```json
    { "checked": true, "new": [], "lost": [] }
    ```
 
 ---
 
-## 10. Renouveler le Session ID
+## 10. Renouveler la session
 
-Quand la session expire, vous recevrez une notification Telegram :
-> 🔑 Session Instagram expirée. Merci de mettre à jour IG_SESSION_ID.
+Quand la session expire, vous recevrez une notification Telegram indiquant que la session Instagram doit être reconnectée.
 
 Pour la renouveler :
 
-1. Connectez-vous à Instagram dans votre navigateur.
-2. Récupérez le nouveau cookie `sessionid` (voir étape 2).
-3. Dans Vercel → **Settings** → **Environment Variables**, mettez à jour `IG_SESSION_ID`.
-4. Supprimez également la session en cache dans Redis en appelant depuis la console Upstash :
-   ```
-   DEL ig:session
-   ```
-5. Redéployez le projet (ou attendez le prochain déploiement automatique).
+1. Ouvrez Instagram dans Chrome et reconnectez-vous.
+2. Cliquez à nouveau sur **Connecter mon compte Instagram** dans l’extension.
+3. La nouvelle session remplace automatiquement celle stockée dans Redis.
+4. Si besoin, appuyez sur **Déconnexion** dans l’interface puis relancez la connexion via l’extension.
 
 ---
 
