@@ -1,15 +1,14 @@
-function requireEnv(name: string): string {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
+function firstNonEmpty(...values: Array<string | undefined>): string | null {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed) return trimmed;
   }
-  return value;
+  return null;
 }
 
 export function getBaseUrl(): string {
   return (
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    process.env.APP_URL?.trim() ||
+    firstNonEmpty(process.env.NEXT_PUBLIC_APP_URL, process.env.APP_URL) ||
     'http://localhost:3000'
   );
 }
@@ -27,8 +26,30 @@ export function getTelegramConfig(): { token: string; chatId: string } | null {
 }
 
 export function getRedisConfig(): { url: string; token: string } {
-  return {
-    url: requireEnv('UPSTASH_REDIS_REST_URL'),
-    token: requireEnv('UPSTASH_REDIS_REST_TOKEN'),
-  };
+  const url = firstNonEmpty(
+    process.env.UPSTASH_REDIS_REST_URL,
+    process.env.KV_REST_API_URL,
+    process.env.KV_URL,
+    process.env.REDIS_URL
+  );
+
+  const token = firstNonEmpty(
+    process.env.UPSTASH_REDIS_REST_TOKEN,
+    process.env.KV_REST_API_TOKEN,
+    process.env.KV_REST_API_READ_ONLY_TOKEN
+  );
+
+  if (!url) {
+    throw new Error(
+      'Missing Redis URL. Expected one of: UPSTASH_REDIS_REST_URL, KV_REST_API_URL, KV_URL, REDIS_URL'
+    );
+  }
+
+  if (!token) {
+    throw new Error(
+      'Missing Redis token. Expected one of: UPSTASH_REDIS_REST_TOKEN, KV_REST_API_TOKEN, KV_REST_API_READ_ONLY_TOKEN'
+    );
+  }
+
+  return { url, token };
 }
