@@ -51,19 +51,15 @@ export async function getOwnConnections(): Promise<{ followers: string[]; follow
   const followers: string[] = [];
   const following: string[] = [];
 
-  let page = await followersFeed.items();
-  page.forEach((u) => followers.push(u.username));
-  while (followersFeed.isMoreAvailable()) {
-    page = await followersFeed.items();
+  do {
+    const page = await followersFeed.items();
     page.forEach((u) => followers.push(u.username));
-  }
+  } while (followersFeed.isMoreAvailable());
 
-  let page2 = await followingFeed.items();
-  page2.forEach((u) => following.push(u.username));
-  while (followingFeed.isMoreAvailable()) {
-    page2 = await followingFeed.items();
-    page2.forEach((u) => following.push(u.username));
-  }
+  do {
+    const followingPage = await followingFeed.items();
+    followingPage.forEach((u) => following.push(u.username));
+  } while (followingFeed.isMoreAvailable());
 
   return { followers, following };
 }
@@ -76,13 +72,10 @@ export async function getFollowers(targetUsername: string): Promise<string[]> {
 
   const usernames: string[] = [];
 
-  let page = await followersFeed.items();
-  page.forEach((u) => usernames.push(u.username));
-
-  while (followersFeed.isMoreAvailable()) {
-    page = await followersFeed.items();
+  do {
+    const page = await followersFeed.items();
     page.forEach((u) => usernames.push(u.username));
-  }
+  } while (followersFeed.isMoreAvailable());
 
   return usernames;
 }
