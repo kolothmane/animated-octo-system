@@ -89,11 +89,41 @@ function normalizeIncomingCookies(body: unknown): IncomingCookie[] {
 
 export async function GET() {
   const username = await getLoggedUsername();
-  return NextResponse.json({
+  const response = NextResponse.json({
     configured: !!username,
     username,
     defaultUsername: process.env.INSTAGRAM_TARGET_USERNAME ?? '',
   });
+
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  return response;
+}
+
+export async function OPTIONS() {
+  const response = new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+  reconst response = NextResponse.json({ message: 'Session Instagram enregistrée avec succès', username });
+
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  reconst response = NextResponse.json({ error: message }, { status: 400 });
+
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  return response, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  return response
 }
 
 export async function POST(req: Request) {
