@@ -3,9 +3,8 @@ import redis from '@/lib/redis';
 
 const KEY = 'ig:session_manual';
 
-function normalizeSessionId(raw: string): string {
+function normalizeValue(raw: string): string {
   const trimmed = raw.trim();
-
   if (!trimmed) return '';
 
   try {
@@ -13,6 +12,21 @@ function normalizeSessionId(raw: string): string {
   } catch {
     return trimmed;
   }
+}
+
+function extractSessionId(input: string): string {
+  const normalized = normalizeValue(input);
+
+  // Case 1: full cookie string
+  if (normalized.includes('sessionid=')) {
+    const match = normalized.match(/sessionid=([^;\s]+)/i);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+  }
+
+  // Case 2: raw value only
+  return normalized;
 }
 
 export async function GET() {
@@ -23,10 +37,17 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const sessionId = normalizeSessionId(body?.sessionId ?? '');
+    const rawInput = String(body?.sessionId ?? '');
+    const sessionId = extractSessionId(rawInput);
 
     if (!sessionId || sessionId.length < 10) {
-      return NextResponse.json({ error: 'Sessionid invalide' }, { status: 400 });
+      return NextResponse.json(
+        {
+          error:
+            'Sessionid invalide. Colle soit la valeur du cookie sessionid, soit un header Cookie contenant sessionid=...'
+        },
+        { status: 400 }
+      );
     }
 
     await redis.set(
@@ -39,9 +60,9 @@ export async function POST(req: Request) {
             domain: '.instagram.com',
             path: '/',
             secure: true,
-            httpOnly: true,
-          },
-        ],
+            httpOnly: true
+          }
+        ]
       })
     );
 
