@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { getLoggedUsername, saveSessionFromBrowserCookies } from '@/lib/instagram';
 
 type IncomingCookie = {
-  name?: string;
-  value?: string;
+  name: string;
+  value: string;
   domain?: string;
   path?: string;
   secure?: boolean;
@@ -13,30 +13,32 @@ type IncomingCookie = {
 };
 
 function parseCookieString(cookieString: string): IncomingCookie[] {
-  return cookieString
-    .split(/;\s*/)
-    .map((segment) => {
-      const separatorIndex = segment.indexOf('=');
-      if (separatorIndex <= 0) {
-        return null;
-      }
+  const segments = cookieString.split(/;\s*/);
+  const cookies: IncomingCookie[] = [];
 
-      const name = segment.slice(0, separatorIndex).trim();
-      const value = segment.slice(separatorIndex + 1).trim();
-      if (!name || !value) {
-        return null;
-      }
+  for (const segment of segments) {
+    const separatorIndex = segment.indexOf('=');
+    if (separatorIndex <= 0) {
+      continue;
+    }
 
-      return {
-        name,
-        value,
-        domain: '.instagram.com',
-        path: '/',
-        secure: true,
-        httpOnly: false,
-      } satisfies IncomingCookie;
-    })
-    .filter((cookie): cookie is IncomingCookie => cookie !== null);
+    const name = segment.slice(0, separatorIndex).trim();
+    const value = segment.slice(separatorIndex + 1).trim();
+    if (!name || !value) {
+      continue;
+    }
+
+    cookies.push({
+      name,
+      value,
+      domain: '.instagram.com',
+      path: '/',
+      secure: true,
+      httpOnly: false,
+    });
+  }
+
+  return cookies;
 }
 
 function normalizeIncomingCookies(body: unknown): IncomingCookie[] {
