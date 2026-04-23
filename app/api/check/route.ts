@@ -12,9 +12,16 @@ export async function GET(request: Request): Promise<NextResponse> {
   await randomSleep(500, 2000);
 
   const { searchParams } = new URL(request.url);
-  const targetUsername = searchParams.get('username');
+  const rawUsername = searchParams.get('username') ?? '';
+  const targetUsername = rawUsername.trim();
+
   if (!targetUsername) {
     return NextResponse.json({ error: 'username query parameter is required' }, { status: 400 });
+  }
+
+  // Instagram usernames: 1–30 chars, alphanumeric, dots, underscores
+  if (!/^[a-zA-Z0-9._]{1,30}$/.test(targetUsername)) {
+    return NextResponse.json({ error: 'Invalid Instagram username' }, { status: 400 });
   }
 
   const PREVIOUS_KEY = `followers:${targetUsername}:previous`;

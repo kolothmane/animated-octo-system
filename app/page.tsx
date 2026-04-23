@@ -35,8 +35,10 @@ export default function Home() {
       <p>Vérifiez les changements de followers d&apos;un compte Instagram privé.</p>
       <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
         <input
+          id="username"
           type="text"
           placeholder="Nom d'utilisateur Instagram"
+          aria-label="Nom d'utilisateur Instagram"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           style={{
