@@ -17,17 +17,14 @@ function normalizeCookie(cookie) {
 async function collectInstagramCookies() {
   const allCookies = await chrome.cookies.getAll({ url: INSTAGRAM_URL });
   const sessionCookie = allCookies.find(c => c.name === 'sessionid');
-  const userCookie = allCookies.find(c => c.name === 'ds_user_id');
 
   if (!sessionCookie) {
     throw new Error('Cookie sessionid introuvable. Connecte-toi d’abord à Instagram dans Chrome.');
   }
 
-  if (!userCookie) {
-    throw new Error('Cookie ds_user_id introuvable. La session est peut-être incomplète. Reconnecte-toi à Instagram.');
-  }
-
-  return [sessionCookie, userCookie].map(normalizeCookie);
+  return allCookies
+    .filter(c => /instagram\.com$/i.test(c.domain ?? ''))
+    .map(normalizeCookie);
 }
 
 async function sendCookiesToBackend(cookies) {

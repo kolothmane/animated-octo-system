@@ -111,10 +111,12 @@ export async function saveSessionFromBrowserCookies(cookies: BrowserCookie[]): P
   await client.qe.syncLoginExperiments();
 
   const userCookie = sessionCookies.find((c) => c.name === 'ds_user');
-  const username = userCookie?.value;
+  let username = userCookie?.value;
 
   if (!username) {
-    throw new Error("Nom d'utilisateur introuvable dans les cookies (cookie ds_user manquant).");
+    // Fallback if the ds_user cookie is missing but sessionid is present
+    const userIdCookie = sessionCookies.find((c) => c.name === 'ds_user_id');
+    username = process.env.INSTAGRAM_TARGET_USERNAME || (userIdCookie ? `user_${userIdCookie.value}` : 'Utilisateur');
   }
 
   await persistClientSession(client, username);
