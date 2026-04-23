@@ -14,27 +14,13 @@ export async function POST(req: Request): Promise<NextResponse> {
     const loggedUsername = await loginAndSaveSession(username, password);
     return NextResponse.json({ username: loggedUsername });
   } catch (err: unknown) {
-    const error = err as Error & { statusCode?: number };
+    const error = err as Error & { statusCode?: number; response?: any };
+    console.error('Login error detail:', error);
 
-    if (
-      error.message?.toLowerCase().includes('checkpoint') ||
-      error.statusCode === 400
-    ) {
-      return NextResponse.json(
-        { error: "Vérification Instagram requise (checkpoint). Connectez-vous manuellement sur l'application Instagram puis réessayez." },
-        { status: 403 }
-      );
-    }
-
-    if (
-      error.statusCode === 401 ||
-      error.message?.toLowerCase().includes('bad_password') ||
-      error.message?.toLowerCase().includes('invalid_credentials')
-    ) {
-      return NextResponse.json({ error: "Nom d'utilisateur ou mot de passe incorrect" }, { status: 401 });
-    }
-
-    console.error('Login error:', error);
-    return NextResponse.json({ error: error.message ?? 'Erreur de connexion' }, { status: 500 });
+    // Send the raw error to the frontend so the user can see what Instagram is actually asking for
+    return NextResponse.json({ 
+      error: error.message ?? 'Erreur de connexion', 
+      details: error.response?.body || error.toString() 
+    }, { status: 400 });
   }
 }
