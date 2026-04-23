@@ -47,24 +47,17 @@ function normalizeIncomingCookies(body: unknown): IncomingCookie[] {
   }
 
   const payload = body as {
-    cookies?: IncomingCookie[];
+    cookies?: Partial<IncomingCookie>[];
     cookieString?: string;
     sessionId?: string;
   };
 
   if (Array.isArray(payload.cookies) && payload.cookies.length > 0) {
     return payload.cookies
-      .map((cookie) => ({
-        name: String(cookie.name ?? '').trim(),
-        value: String(cookie.value ?? '').trim(),
-        domain: cookie.domain,
-        path: cookie.path,
-        secure: cookie.secure,
-        httpOnly: cookie.httpOnly,
-        expirationDate: cookie.expirationDate,
-        sameSite: cookie.sameSite,
-      }))
-      .filter((cookie) => cookie.name && cookie.value);
+      .filter(
+        (cookie): cookie is IncomingCookie =>
+          !!(cookie && typeof cookie.name === 'string' && typeof cookie.value === 'string')
+      );
   }
 
   if (typeof payload.cookieString === 'string' && payload.cookieString.trim()) {
@@ -111,19 +104,7 @@ export async function OPTIONS() {
       'Access-Control-Allow-Headers': 'Content-Type',
     },
   });
-  reconst response = NextResponse.json({ message: 'Session Instagram enregistrée avec succès', username });
-
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  reconst response = NextResponse.json({ error: message }, { status: 400 });
-
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
-
-  return response, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type');
-
-  return response
+  return response;
 }
 
 export async function POST(req: Request) {
@@ -132,18 +113,31 @@ export async function POST(req: Request) {
     const cookies = normalizeIncomingCookies(body);
 
     if (cookies.length === 0) {
-      return NextResponse.json(
+      const errorResponse = NextResponse.json(
         {
           error: 'Aucun cookie Instagram valide reçu. L’extension doit envoyer le cookie complet.',
         },
         { status: 400 }
       );
+      errorResponse.headers.set('Access-Control-Allow-Origin', '*');
+      errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+      return errorResponse;
     }
 
     const username = await saveSessionFromBrowserCookies(cookies);
-    return NextResponse.json({ message: 'Session Instagram enregistrée avec succès', username });
+    const successResponse = NextResponse.json({ message: 'Session Instagram enregistrée avec succès', username });
+    successResponse.headers.set('Access-Control-Allow-Origin', '*');
+    successResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    successResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+    return successResponse;
+
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur serveur';
-    return NextResponse.json({ error: message }, { status: 400 });
+    const errorResponse = NextResponse.json({ error: message }, { status: 400 });
+    errorResponse.headers.set('Access-Control-Allow-Origin', '*');
+    errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type');
+    return errorResponse;
   }
 }
