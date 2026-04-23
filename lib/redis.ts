@@ -1,11 +1,20 @@
 import { Redis } from '@upstash/redis';
 import { getRedisConfig } from './env';
 
-const { url, token } = getRedisConfig();
+let _redis: Redis | null = null;
 
-const redis = new Redis({
-  url,
-  token,
+function getRedis(): Redis {
+  if (!_redis) {
+    const { url, token } = getRedisConfig();
+    _redis = new Redis({ url, token });
+  }
+  return _redis;
+}
+
+const redis = new Proxy({} as Redis, {
+  get(_target, prop) {
+    return getRedis()[prop as keyof Redis];
+  },
 });
 
 export default redis;
