@@ -110,9 +110,15 @@ export async function saveSessionFromBrowserCookies(cookies: BrowserCookie[]): P
   await client.state.deserialize({ cookies: toSerializedCookieJar(sessionCookies) });
   await client.qe.syncLoginExperiments();
 
-  const currentUser = await client.account.currentUser();
-  await persistClientSession(client, currentUser.username);
-  return currentUser.username;
+  const userCookie = sessionCookies.find((c) => c.name === 'ds_user');
+  const username = userCookie?.value;
+
+  if (!username) {
+    throw new Error("Nom d'utilisateur introuvable dans les cookies (cookie ds_user manquant).");
+  }
+
+  await persistClientSession(client, username);
+  return username;
 }
 
 export async function loginAndSaveSession(username: string, password: string): Promise<string> {
