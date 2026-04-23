@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getFollowers } from '@/lib/instagram';
 import redis from '@/lib/redis';
 import { sendTelegramMessage } from '@/lib/telegram';
+import { getDefaultTargetUsername } from '@/lib/env';
 
 function randomSleep(min: number, max: number): Promise<void> {
   const ms = Math.floor(Math.random() * (max - min + 1)) + min;
@@ -12,14 +13,13 @@ export async function GET(request: Request): Promise<NextResponse> {
   await randomSleep(500, 2000);
 
   const { searchParams } = new URL(request.url);
-  const rawUsername = searchParams.get('username') ?? '';
+  const rawUsername = searchParams.get('username') ?? getDefaultTargetUsername();
   const targetUsername = rawUsername.trim();
 
   if (!targetUsername) {
-    return NextResponse.json({ error: 'username query parameter is required' }, { status: 400 });
+    return NextResponse.json({ error: 'username is required (query or env INSTAGRAM_TARGET_USERNAME)' }, { status: 400 });
   }
 
-  // Instagram usernames: 1–30 chars, alphanumeric, dots, underscores
   if (!/^[a-zA-Z0-9._]{1,30}$/.test(targetUsername)) {
     return NextResponse.json({ error: 'Invalid Instagram username' }, { status: 400 });
   }
@@ -47,7 +47,6 @@ export async function GET(request: Request): Promise<NextResponse> {
       await sendTelegramMessage(message);
     }
 
-    // Replace previous set with current list
     await redis.del(PREVIOUS_KEY);
     if (currentFollowers.length > 0) {
       await redis.sadd(PREVIOUS_KEY, currentFollowers[0], ...currentFollowers.slice(1));
@@ -63,9 +62,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       error.message?.toLowerCase().includes('login_required') ||
       error.message?.toLowerCase().includes('checkpoint')
     ) {
-      await sendTelegramMessage(
-        '🔑 Session Instagram expirée. Merci de mettre à jour IG_SESSION_ID.'
-      );
+      await sendTelegramMessage('🔑 Session Instagram expirée. Merci de reconnecter via l’interface.');
       return NextResponse.json({ error: 'Session expired' }, { status: 401 });
     }
 
