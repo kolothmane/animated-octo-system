@@ -83,7 +83,7 @@ export default function Home() {
       setLoggedIn(false);
       setSessionStatus('error');
       setSessionMessage(
-        'Impossible de joindre le backend local. Vérifie que Next.js tourne sur http://localhost:3000.'
+        'Impossible de joindre le backend. Vérifiez votre connexion et que le service est en ligne.'
       );
     } finally {
       if (showLoader) {
@@ -206,7 +206,7 @@ export default function Home() {
                 >
                   {sessionChecking ? 'Vérification...' : 'Rafraîchir la détection'}
                 </button>
-                <span style={endpointHintStyle}>API locale: http://localhost:3000/api/session</span>
+                <span style={endpointHintStyle}>API: {process.env.NEXT_PUBLIC_VERCEL_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}/api/session` : 'https://animated-octo-system-ashy.vercel.app/api/session'}</span>
               </div>
 
               {sessionStatus === 'error' && (
