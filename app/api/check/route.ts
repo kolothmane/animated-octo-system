@@ -3,20 +3,28 @@ import { getFollowers } from '@/lib/instagram';
 import redis from '@/lib/redis';
 import { sendTelegramMessage } from '@/lib/telegram';
 
-const PREVIOUS_KEY = 'followers:target:previous';
-
 function randomSleep(min: number, max: number): Promise<void> {
   const ms = Math.floor(Math.random() * (max - min + 1)) + min;
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
   await randomSleep(500, 2000);
 
-  const targetUsername = process.env.TARGET_USERNAME;
+  const { searchParams } = new URL(request.url);
+  const rawUsername = searchParams.get('username') ?? '';
+  const targetUsername = rawUsername.trim();
+
   if (!targetUsername) {
-    return NextResponse.json({ error: 'TARGET_USERNAME not set' }, { status: 500 });
+    return NextResponse.json({ error: 'username query parameter is required' }, { status: 400 });
   }
+
+  // Instagram usernames: 1–30 chars, alphanumeric, dots, underscores
+  if (!/^[a-zA-Z0-9._]{1,30}$/.test(targetUsername)) {
+    return NextResponse.json({ error: 'Invalid Instagram username' }, { status: 400 });
+  }
+
+  const PREVIOUS_KEY = `followers:${targetUsername}:previous`;
 
   try {
     const currentFollowers = await getFollowers(targetUsername);
