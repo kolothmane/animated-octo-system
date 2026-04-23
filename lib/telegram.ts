@@ -1,18 +1,19 @@
-export async function sendTelegramMessage(text: string): Promise<void> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+import { getTelegramConfig } from './env';
 
-  if (!token || !chatId) {
-    console.error('Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID');
+export async function sendTelegramMessage(text: string): Promise<void> {
+  const cfg = getTelegramConfig();
+
+  if (!cfg) {
+    console.warn('Telegram not configured, skipping message');
     return;
   }
 
-  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const url = `https://api.telegram.org/bot${cfg.token}/sendMessage`;
 
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text }),
+    body: JSON.stringify({ chat_id: cfg.chatId, text }),
   });
 
   if (!response.ok) {
